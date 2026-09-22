@@ -1,0 +1,7 @@
+- insert:
+    - id: dsh-wsl-playwright
+      name: dsh-wsl-playwright
+      config:
+        enabled: true
+        timeoutMs: 90000
+        maxChars: 30000
