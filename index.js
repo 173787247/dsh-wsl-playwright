@@ -1,4 +1,4 @@
-import { pwStatus, pwFetch } from "./lib/pw.js";
+import { pwStatus, pwFetch, pwTitle } from "./lib/pw.js";
 
 export const name = "dsh-wsl-playwright";
 export const inject = ["tools", "systemPrompt"];
@@ -15,21 +15,52 @@ export function apply(ctx, config = {}) {
   ctx.systemPrompt.section({
     name: "tool:playwright-wsl",
     order: 138,
-    text: "dsh-wsl-playwright does headless Chromium fetch in WSL (pw_fetch). For interactive Windows browsing prefer dsh-wsl-browser. Do not drive both on the same task. First run may download Playwright browsers via npx.",
+    text: "dsh-wsl-playwright does headless Chromium fetch in WSL (pw_title for quick title/status, pw_fetch for body text). For interactive Windows browsing prefer dsh-wsl-browser. Do not drive both on the same task. First run may download Playwright browsers via npx.",
   });
 
   ctx.tools.register({
     name: "pw_status",
-    description: "Whether npx/node available for Playwright headless runs.",
+    description: "Whether npx/node available for Playwright headless runs; node version.",
     parameters: { type: "object", additionalProperties: false, properties: {} },
-    output: { schema: { type: "object", additionalProperties: true }, render: (_a, v) => [{ type: "text", text: JSON.stringify(v) }] },
-    timeoutMs: 5_000,
+    output: { schema: { type: "object", additionalProperties: true }, render: (_a, v) => [{ type: "text", text: JSON.stringify(v, null, 2) }] },
+    timeoutMs: 8_000,
     isConcurrencySafe: () => true,
     async execute() {
       return pwStatus();
     },
     presentCall: () => ({ card: "generic", title: "pw status" }),
     presentResult: (_a, r) => ({ card: "generic", title: "pw status", content: r.content }),
+  });
+
+  ctx.tools.register({
+    name: "pw_title",
+    description: "Headless open http(s) URL; return title + HTTP status + final URL (no body). High-frequency read-only probe.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["url"],
+      properties: { url: { type: "string" } },
+    },
+    output: {
+      schema: { type: "object", additionalProperties: true },
+      render: (_a, v) => [
+        {
+          type: "text",
+          text: v.ok === false ? v.error : `title=${v.title}\nstatus=${v.status}\nfinalUrl=${v.finalUrl}`,
+        },
+      ],
+    },
+    timeoutMs,
+    isConcurrencySafe: () => true,
+    async execute(args) {
+      try {
+        return await pwTitle({ url: args.url, timeoutMs });
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    presentCall: () => ({ card: "generic", title: "pw title" }),
+    presentResult: (_a, r) => ({ card: "generic", title: "pw title", content: r.content }),
   });
 
   ctx.tools.register({
